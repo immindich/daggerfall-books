@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import sys, struct
+import json
 
 NEW_LINE = 0x00
 SAME_LINE = 0x01
@@ -22,6 +23,13 @@ class Line:
         self.xpos = 0
         self.ypos = 0
 
+    def as_dict(self):
+        return {'align': self.align,
+                'font': self.font,
+                'xpos': self.xpos,
+                'ypos': self.ypos,
+                'text': self.text}
+
 class Page:
     def __init__(self, data, offset):
         self.lines = []
@@ -30,7 +38,6 @@ class Page:
         line = Line()
 
         while data[i] != END_PAGE:
-            print(i, hex(data[i]))
             if data[i + 1] == POSITION_PREFIX:
                 if data[i] == NEW_LINE:
                     self.lines.append(line)
@@ -58,6 +65,32 @@ class Page:
         if line.text != '':
             self.lines.append(line)
 
+    def serializable(self):
+        cur_line = None
+        line_list = []
+
+        for line in self.lines:
+            if cur_line:
+                if (cur_line['align'] == line.align and
+                    cur_line['font'] == line.font and
+                    cur_line['xpos'] == line.xpos and
+                    cur_line['ypos'] == line.ypos):
+
+                    if not isinstance(cur_line['text'], list):
+                        cur_line['text'] = [cur_line['text']]
+
+                    cur_line['text'].append(line.text)
+                else:
+                    line_list.append(cur_line)
+                    cur_line = line.as_dict()
+            else:
+                cur_line = line.as_dict()
+
+        if cur_line:
+            line_list.append(cur_line)
+
+        return line_list
+
 class Book:
     def __init__(self):
         self.title = ""
@@ -84,7 +117,8 @@ class Book:
 
         page_count = struct.unpack('<H', book_data[234:236])[0]
 
-        page_offsets = [struct.unpack('<I', book_data[236 + 4 * i:240 + 4 * i])[0]
+        page_offsets = [struct.unpack('<I', book_data[236 + 4 * i:
+                                                      240 + 4 * i])[0]
                         for i in range(page_count)]
 
         for offset in page_offsets:
@@ -95,29 +129,46 @@ class Book:
             for l in p.lines:
                 print(l.text)
 
-def usage():
-    sys.stderr.write("Usage: book [FILE]\n")
+    def dump_json(self):
+        book_dict = {}
+        book_dict['title'] = self.title
+        book_dict['author'] = self.author
+        book_dict['pages'] = [p.serializable() for p in self.pages]
+        book_dict['naughty'] = self.naughty
+        book_dict['price'] = self.price
+        book_dict['unknowns'] = self.unknowns
 
+        return json.dumps(book_dict, indent = 4)
+
+def usage(status = 0):
+    sys.stderr.write("Usage: book [FILE]\n")
+    sys.exit(status)
 
 if len(sys.argv) == 1:
     usage()
-    sys.exit(0)
-if len(sys.argv) > 2:
+if len(sys.argv) > 3:
     sys.stderr.write("Error: wrong number of arguments\n")
-    usage()
-    sys.exit(1)
+    usage(1)
 
 book = Book()
 
-if len(sys.argv) == 2:
+if len(sys.argv) == 3:
     try:
-        in_file = open(sys.argv[1], 'rb')
+        in_file = open(sys.argv[2], 'rb')
     except IOError:
         sys.stderr.write("Error: could not open file {filename}\n"
-                         .format(filename=sys.argv[1]))
-        sys.exit(1)
+                         .format(filename=sys.argv[2]))
+        usage(1)
 else:
     in_file = sys.stdin.buffer
 
-book.decode(in_file)
-book.print_text()
+if sys.argv[1] == "print":
+    book.decode(in_file)
+    book.print_text()
+elif sys.argv[1] == "dump":
+    book.decode(in_file)
+    print(book.dump_json())
+else:
+    sys.stderr.write("Error: unknown verb '{verb}'\n"
+                     .format(verb=sys.argv[1]))
+    usage(1)
