@@ -1,0 +1,32 @@
+#+TITLE: Daggerfall tools
+#+AUTHOR: Isaiah Mindich
+#+STARTUP: showall
+
+* Description
+
+  This is a script I wrote to read the in-game books from The Elder
+  Scrolls II: Daggerfall outside of the game.  If I write any other
+  tools related to Daggerfall, they'll probably also go here.  Output
+  may look slightly mangled, but that isn't necessarily the program's
+  fault.  There's a good chance that the book liked like that in the
+  original game.
+
+* Obtaining Daggerfall
+
+  Bethesda offers Daggerfall as a free download:
+
+  http://www.elderscrolls.com/daggerfall/
+
+  Books are stored in DFCD/DAGGER/ARENA2/BOOKS, and also in
+  DAGGER/ARENA2/BOOKS, depending on your installation size.  If you're
+  looking for a specific book, I included a list of titles and
+  filenames in booklist.txt.
+
+* Running
+  #+begin_example
+  ./dfbook [FILE]
+  #+end_example
+
+  FILE is the book file to read from.  If FILE is omitted, the data
+  will be read from the standard input.  The program will output the
+  book in plain text.

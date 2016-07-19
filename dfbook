@@ -1,0 +1,122 @@
+#!/usr/bin/python3
+
+import sys, struct
+
+NEW_LINE = 0x00
+SAME_LINE = 0x01
+POSITION_PREFIX = 0xfb
+FONT_PREFIX = 0xf9
+FONT_SCRIPT = 0x02
+FONT_NORMAL = 0x04
+END_PAGE = 0xf6
+CENTER = 0xfd
+
+class Line:
+    def __init__(self, prev = None):
+        self.align = 'left'
+        if prev:
+            self.font = prev.font
+        else:
+            self.font = 'normal'
+        self.text = ''
+        self.xpos = 0
+        self.ypos = 0
+
+class Page:
+    def __init__(self, data, offset):
+        self.lines = []
+
+        i = offset
+        line = Line()
+
+        while data[i] != END_PAGE:
+            if data[i + 1] == POSITION_PREFIX:
+                if data[i] == NEW_LINE:
+                    self.lines.append(line)
+                    line = Line(line)
+                    line.xpos = data[i + 2]
+                    line.ypos = data[i + 3]
+                    i += 4
+                continue
+            elif data[i] == FONT_PREFIX:
+                if data[i + 1] == FONT_SCRIPT:
+                    line.font = 'script'
+                else:
+                    line.font = 'normal'
+                i += 2
+                continue
+            elif data[i] == NEW_LINE:
+                self.lines.append(line)
+                line = Line(line)
+            elif data[i] == CENTER:
+                line.align = 'center'
+            else:
+                line.text += chr(data[i])
+            i+= 1
+
+        if line.text != '':
+            self.lines.append(line)
+
+class Book:
+    def __init__(self):
+        self.title = ""
+        self.author = ""
+        self.pages = []
+        self.naughty = False
+        self.price = 0
+        self.unknowns = [0, 0, 0]
+
+    def decode(self, in_file):
+        book_data = in_file.read()
+
+        if len(book_data) < 238:
+            sys.stderr.write("Error: file too short\n")
+            sys.exit(1)
+
+        self.title = book_data[:64].decode('utf-8').rstrip('\0')
+        self.author = book_data[64:128].decode('utf-8').rstrip('\0')
+
+        self.naughty = book_data[128:136] == b'naughty '
+        self.price = struct.unpack('<I', book_data[224:228])[0]
+
+        self.unknowns = list(struct.unpack('<HHH', book_data[228:234]))
+
+        page_count = struct.unpack('<H', book_data[234:236])[0]
+
+        page_offsets = [struct.unpack('<I', book_data[236 + 4 * i:240 + 4 * i])[0]
+                        for i in range(page_count)]
+
+        for offset in page_offsets:
+            self.pages.append(Page(book_data, offset))
+
+    def print_text(self):
+        for p in self.pages:
+            for l in p.lines:
+                print(l.text)
+
+def usage():
+    sys.stderr.write("Usage: book ACTION [FILE]\n")
+
+
+if len(sys.argv) == 1:
+    usage()
+    sys.exit(0)
+if len(sys.argv) > 2:
+    sys.stderr.write("Error: wrong number of arguments\n")
+    usage()
+    sys.exit(1)
+
+book = Book()
+
+if len(sys.argv) == 2:
+    try:
+        in_file = open(sys.argv[1], 'rb')
+    except IOError:
+        sys.stderr.write("Error: could not open file {filename}\n"
+                         .format(filename=sys.argv[1]))
+        sys.exit(1)
+else:
+    in_file = sys.stdin.buffer
+
+book.decode(in_file)
+book.print_text()
