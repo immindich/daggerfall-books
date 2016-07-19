@@ -24,9 +24,19 @@
 
 * Running
   #+begin_example
-  ./dfbook [FILE]
+  ./dfbook ACTION [FILE]
   #+end_example
 
   FILE is the book file to read from.  If FILE is omitted, the data
-  will be read from the standard input.  The program will output the
-  book in plain text.
+  will be read from the standard input.
+
+  Options for ACTION:
+
+  - print
+
+    Print out the book's contents as plain text.
+
+  - dump
+
+    Dump the all of the book's text and formatting data as a JSON
+    object.
