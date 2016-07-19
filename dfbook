@@ -95,7 +95,7 @@ class Book:
                 print(l.text)
 
 def usage():
-    sys.stderr.write("Usage: book ACTION [FILE]\n")
+    sys.stderr.write("Usage: book [FILE]\n")
 
 
 if len(sys.argv) == 1:
