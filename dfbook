@@ -30,13 +30,14 @@ class Page:
         line = Line()
 
         while data[i] != END_PAGE:
+            print(i, hex(data[i]))
             if data[i + 1] == POSITION_PREFIX:
                 if data[i] == NEW_LINE:
                     self.lines.append(line)
                     line = Line(line)
                     line.xpos = data[i + 2]
                     line.ypos = data[i + 3]
-                    i += 4
+                i += 4
                 continue
             elif data[i] == FONT_PREFIX:
                 if data[i + 1] == FONT_SCRIPT:
