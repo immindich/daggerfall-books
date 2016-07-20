@@ -177,11 +177,12 @@ class Book:
         for offset in page_offsets:
             self.pages.append(Page(book_data, offset))
 
-    def print_text(self):
+    def print_text(self, out):
         """Print as plain text, losing some formatting"""
         for p in self.pages:
             for l in p.lines:
-                print(l.text)
+                out.write(l.text.encode())
+                out.write(b'\n')
 
     def dump_json(self):
         """Return all the book data in JSON format"""
@@ -202,6 +203,7 @@ Options:
 -f FORMAT: specify the output format:
 \ttext: plain text
 \tjson: a json object, containing all text and formatting info
+-o FILE: output to a file
 """
     sys.stderr.write(info)
     sys.exit(status)
@@ -211,7 +213,7 @@ def print_exception(e):
 
 def start():
     try:
-        flags, args = getopt.getopt(sys.argv[1:], 'hf:', ['help'])
+        flags, args = getopt.getopt(sys.argv[1:], 'hf:o:', ['help'])
     except getopt.GetoptError as e:
         print_exception(e)
         usage(1)
@@ -221,6 +223,7 @@ def start():
         usage(1)
 
     output_format = 'text'
+    output_name = None
     in_file = sys.stdin.buffer
 
     for opt, val in flags:
@@ -228,6 +231,8 @@ def start():
             usage()
         elif opt == '-f':
             output_format = val
+        elif opt == '-o':
+            output_name = val
         else:
             sys.stderr.write("Error: unrecognized option\n")
             usage(1)
@@ -242,10 +247,20 @@ def start():
     book = Book()
     book.decode(in_file)
 
+    if output_name:
+        try:
+            out_file = open(output_name, 'wb')
+        except IOError as e:
+            print_exception(e)
+            sys.exit(1)
+    else:
+        out_file = sys.stdout.buffer
+
     if output_format == 'text':
-        book.print_text()
+        book.print_text(out_file)
     elif output_format == 'json':
-        print(book.dump_json())
+        out_file.write(book.dump_json())
+        out_file.write('\n')
     else:
         sys.stderr.write("Error: unrecognized format '{f}'\n"
                          .format(f=output_format))

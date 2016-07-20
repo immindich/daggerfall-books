@@ -49,3 +49,7 @@
     - json
 
       Dump the all of the book's text and formatting data as a JSON object.
+
+  - -o FILE
+
+    Write the output to a file.
