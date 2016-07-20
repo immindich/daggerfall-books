@@ -36,7 +36,7 @@
 
     Print out help.
 
-  - -f FORMAT
+  - -f FORMAT, --format FORMAT
 
     Specify the output format.
 
@@ -50,6 +50,6 @@
 
       Dump the all of the book's text and formatting data as a JSON object.
 
-  - -o FILE
+  - -o FILE, --output FILE
 
     Write the output to a file.

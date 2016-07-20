@@ -200,10 +200,10 @@ def usage(status = 0):
     info = """Usage: ./dfbook [OPTIONS] [FILE]
 Options:
 -h, --help: print this help
--f FORMAT: specify the output format:
+-f FORMAT, --format FORMAT: specify the output format:
 \ttext: plain text
 \tjson: a json object, containing all text and formatting info
--o FILE: output to a file
+-o FILE, --output: output to a file
 """
     sys.stderr.write(info)
     sys.exit(status)
@@ -213,7 +213,9 @@ def print_exception(e):
 
 def start():
     try:
-        flags, args = getopt.getopt(sys.argv[1:], 'hf:o:', ['help'])
+        flags, args = getopt.gnu_getopt(sys.argv[1:], 'hf:o:', ['help',
+                                                                'output=',
+                                                                'format='])
     except getopt.GetoptError as e:
         print_exception(e)
         usage(1)
@@ -229,9 +231,9 @@ def start():
     for opt, val in flags:
         if opt in ('-h', '--help'):
             usage()
-        elif opt == '-f':
+        elif opt in ('-f', '--format'):
             output_format = val
-        elif opt == '-o':
+        elif opt == ('-o', '--output'):
             output_name = val
         else:
             sys.stderr.write("Error: unrecognized option\n")
@@ -259,8 +261,8 @@ def start():
     if output_format == 'text':
         book.print_text(out_file)
     elif output_format == 'json':
-        out_file.write(book.dump_json())
-        out_file.write('\n')
+        out_file.write(book.dump_json().encode())
+        out_file.write(b'\n')
     else:
         sys.stderr.write("Error: unrecognized format '{f}'\n"
                          .format(f=output_format))
