@@ -13,6 +13,8 @@ END_PAGE = 0xf6
 CENTER = 0xfd
 
 class Line:
+    """The content and formatting data for a single line of text."""
+
     def __init__(self, prev = None):
         self.align = 'left'
         if prev:
@@ -24,6 +26,7 @@ class Line:
         self.ypos = 0
 
     def as_dict(self):
+        """Convert to a dictionary, for easy JSON converesion."""
         return {'align': self.align,
                 'font': self.font,
                 'xpos': self.xpos,
@@ -31,6 +34,14 @@ class Line:
                 'text': self.text}
 
 class Page:
+    """A page from a book.
+
+    Books in Daggerfall are divided into pages.  If text goes off a
+    page, it will not automatically go onto another page.  Instead, it
+    will just go off the screen.
+
+    """
+
     def __init__(self, data, offset):
         self.lines = []
 
@@ -66,6 +77,7 @@ class Page:
             self.lines.append(line)
 
     def serializable(self):
+        """Return the data in a way that can be converted to JSON."""
         cur_line = None
         line_list = []
 
@@ -92,6 +104,14 @@ class Page:
         return line_list
 
 class Book:
+    """Represents a single book and its contents
+
+    The Book class contains all the text and formatting of one book,
+    along with methods for writing and reading that information
+    to/from various formats.
+
+    """
+
     def __init__(self):
         self.title = ""
         self.author = ""
@@ -101,6 +121,14 @@ class Book:
         self.unknowns = [0, 0, 0]
 
     def decode(self, in_file):
+        """Decode a file in the original book format
+
+        in_file must be a file object or at least something with a
+        .read() method which returns all the data as bytes.  Files
+        must be opened in binary mode, or there will be unicode errors
+        when trying to read from them.
+
+        """
         book_data = in_file.read()
 
         if len(book_data) < 238:
@@ -125,11 +153,13 @@ class Book:
             self.pages.append(Page(book_data, offset))
 
     def print_text(self):
+        """Print as plain text, losing some formatting"""
         for p in self.pages:
             for l in p.lines:
                 print(l.text)
 
     def dump_json(self):
+        """Return all the book data in JSON format"""
         book_dict = {}
         book_dict['title'] = self.title
         book_dict['author'] = self.author
