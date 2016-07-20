@@ -24,19 +24,28 @@
 
 * Running
   #+begin_example
-  ./dfbook ACTION [FILE]
+  ./dfbook [OPTIONS] [FILE]
   #+end_example
 
   FILE is the book file to read from.  If FILE is omitted, the data
   will be read from the standard input.
 
-  Options for ACTION:
+  Options:
 
-  - print
+  - --help, -h
 
-    Print out the book's contents as plain text.
+    Print out help.
 
-  - dump
+  - -f FORMAT
 
-    Dump the all of the book's text and formatting data as a JSON
-    object.
+    Specify the output format.
+
+    Formats:
+
+    - text
+
+      Print out the book as plain text, losing some of its formatting.
+
+    - json
+
+      Dump the all of the book's text and formatting data as a JSON object.
