@@ -246,5 +246,8 @@ def start():
         book.print_text()
     elif output_format == 'json':
         print(book.dump_json())
+    else:
+        sys.stderr.write("Error: unrecognized format '{f}'\n"
+                         .format(f=output_format))
 
 start()
