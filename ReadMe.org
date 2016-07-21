@@ -50,6 +50,10 @@
 
       Dump the all of the book's text and formatting data as a JSON object.
 
+    - book
+
+      Output in the original Daggerfall book format.
+
   - -o FILE, --output FILE
 
     Write the output to a file.

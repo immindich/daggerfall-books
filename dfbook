@@ -128,6 +128,35 @@ class Page:
 
         return line_list
 
+    def dump_record(self):
+        record = b''
+        prev_line = None
+        for line in self.lines:
+            if line.xpos != 0 or line.ypos != 0:
+                if not prev_line:
+                    record += bytes([SAME_LINE])
+                record += bytes([POSITION_PREFIX, line.xpos, line.ypos])
+
+            if prev_line and line.font != prev_line.font:
+                record += bytes([FONT_PREFIX])
+                if line.font == 'script':
+                    record += bytes([FONT_SCRIPT])
+                else:
+                    record += bytes([FONT_NORMAL])
+            elif not prev_line and line.font == 'script':
+                record += bytes([FONT_PREFIX, FONT_SCRIPT])
+
+            if line.align == 'center':
+                record += bytes([CENTER])
+
+            record += line.text.encode()
+            record += bytes([NEW_LINE])
+
+            prev_line = line
+
+        record += bytes([END_PAGE])
+        return record
+
 class Book:
     """Represents a single book and its contents
 
@@ -196,6 +225,41 @@ class Book:
 
         return json.dumps(book_dict, indent = 4)
 
+    def write_book(self, book_file):
+        title = self.title.encode()
+        title += b'\0' * (64 - len(title))
+        book_file.write(title)
+
+        author = self.author.encode()
+        author += b'\0' * (64 - len(author))
+        book_file.write(author)
+
+        if self.naughty:
+            book_file.write('naughty ')
+        else:
+            book_file.write(b'\0' * 8)
+
+        book_file.write(bytes(88))
+        book_file.write(struct.pack('<I', self.price))
+        book_file.write(struct.pack('<HHH', self.unknowns[0], self.unknowns[1],
+                                     self.unknowns[2]))
+        book_file.write(struct.pack('<H', len(self.pages)))
+
+        page_records = []
+
+        for page in self.pages:
+            page_records.append(page.dump_record())
+
+        # Size of header
+        offset = 236 + 4 * len(self.pages)
+
+        for record in page_records:
+            book_file.write(struct.pack('<I', offset))
+            offset += len(record)
+
+        for record in page_records:
+            book_file.write(record)
+
 def usage(status = 0):
     info = """Usage: ./dfbook [OPTIONS] [FILE]
 Options:
@@ -203,6 +267,7 @@ Options:
 -f FORMAT, --format FORMAT: specify the output format:
 \ttext: plain text
 \tjson: a json object, containing all text and formatting info
+\tbook: Daggerfall book format
 -o FILE, --output: output to a file
 """
     sys.stderr.write(info)
@@ -233,10 +298,11 @@ def start():
             usage()
         elif opt in ('-f', '--format'):
             output_format = val
-        elif opt == ('-o', '--output'):
+        elif opt in ('-o', '--output'):
             output_name = val
         else:
-            sys.stderr.write("Error: unrecognized option\n")
+            sys.stderr.write("Error: unrecognized option '{o}'\n"
+                             .format(o=opt))
             usage(1)
 
     if len(args) == 1:
@@ -263,6 +329,8 @@ def start():
     elif output_format == 'json':
         out_file.write(book.dump_json().encode())
         out_file.write(b'\n')
+    elif output_format == 'book':
+        book.write_book(out_file)
     else:
         sys.stderr.write("Error: unrecognized format '{f}'\n"
                          .format(f=output_format))
