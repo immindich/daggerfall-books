@@ -58,6 +58,17 @@ class Line:
                 'ypos': self.ypos,
                 'text': self.text}
 
+def line_from_dict(line_data, text):
+    line = Line()
+    line.align = line_data['align']
+    line.font = line_data['font']
+    line.text = text
+    line.xpos = line_data['xpos']
+    line.ypos = line_data['ypos']
+
+    return line
+
+
 class Page:
     """A page from a book.
 
@@ -67,9 +78,10 @@ class Page:
 
     """
 
-    def __init__(self, data, offset):
+    def __init__(self):
         self.lines = []
 
+    def load_from_record(self, data, offset):
         i = offset
         line = Line()
 
@@ -204,7 +216,9 @@ class Book:
                         for i in range(page_count)]
 
         for offset in page_offsets:
-            self.pages.append(Page(book_data, offset))
+            p = Page()
+            p.load_from_record(book_data, offset)
+            self.pages.append(p)
 
     def print_text(self, out):
         """Print as plain text, losing some formatting"""
@@ -260,15 +274,39 @@ class Book:
         for record in page_records:
             book_file.write(record)
 
+    def load_json(self, data_str):
+        data = json.loads(data_str.decode())
+
+        self.title = data['title']
+        self.author = data['author']
+        self.naughty = data['naughty']
+        self.price = data['price']
+        self.unknowns = data['unknowns']
+
+        self.pages = []
+
+        for page_data in data['pages']:
+            page = Page()
+            for line_group in page_data:
+                if isinstance(line_group['text'], list):
+                    for text in line_group['text']:
+                        page.lines.append(line_from_dict(line_group, text))
+                else:
+                    page.lines.append(line_from_dict(line_group,
+                                                     line_group['text']))
+            self.pages.append(page)
+
 def usage(status = 0):
     info = """Usage: ./dfbook [OPTIONS] [FILE]
 Options:
 -h, --help: print this help
--f FORMAT, --format FORMAT: specify the output format:
+-f, --format FORMAT: specify the output format:
 \ttext: plain text
 \tjson: a json object, containing all text and formatting info
 \tbook: Daggerfall book format
--o FILE, --output: output to a file
+-o, --output FILE: output to a file
+-i, --input-format FORMAT: specify the input format
+\tcurrently only accepts 'json' and 'book'
 """
     sys.stderr.write(info)
     sys.exit(status)
@@ -278,9 +316,10 @@ def print_exception(e):
 
 def start():
     try:
-        flags, args = getopt.gnu_getopt(sys.argv[1:], 'hf:o:', ['help',
-                                                                'output=',
-                                                                'format='])
+        flags, args = getopt.gnu_getopt(sys.argv[1:], 'hf:o:i:', ['help',
+                                                                  'output=',
+                                                                  'format='
+                                                                  'input='])
     except getopt.GetoptError as e:
         print_exception(e)
         usage(1)
@@ -289,6 +328,7 @@ def start():
         sys.stderr.write("Error: too many arguments\n")
         usage(1)
 
+    input_format = 'book'
     output_format = 'text'
     output_name = None
     in_file = sys.stdin.buffer
@@ -300,6 +340,8 @@ def start():
             output_format = val
         elif opt in ('-o', '--output'):
             output_name = val
+        elif opt in ('-i', '--input-format'):
+            input_format = val
         else:
             sys.stderr.write("Error: unrecognized option '{o}'\n"
                              .format(o=opt))
@@ -313,7 +355,14 @@ def start():
             sys.exit(1)
 
     book = Book()
-    book.decode(in_file)
+    if input_format == 'book':
+        book.decode(in_file)
+    elif input_format == 'json':
+        book.load_json(in_file.read())
+    else:
+        sys.stderr.write("Error: unrecognized input format '{f}'\n"
+                         .format(f=input_format))
+        sys.exit(1)
 
     if output_name:
         try:
@@ -334,5 +383,6 @@ def start():
     else:
         sys.stderr.write("Error: unrecognized format '{f}'\n"
                          .format(f=output_format))
+        sys.exit(1)
 
 start()

@@ -36,9 +36,11 @@
 
     Print out help.
 
-  - -f FORMAT, --format FORMAT
+  - -f, --format FORMAT
 
     Specify the output format.
+
+    Default: text
 
     Formats:
 
@@ -54,6 +56,12 @@
 
       Output in the original Daggerfall book format.
 
-  - -o FILE, --output FILE
+  - -o, --output FILE
 
-    Write the output to a file.
+    Write the output to a file.  If omitted, output goes to stdout.
+
+  - -i, --input-format FORMAT
+
+    Specify the input format.  Only accepts json and book.
+
+    Default: book
