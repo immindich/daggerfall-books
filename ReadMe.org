@@ -62,6 +62,36 @@
 
   - -i, --input-format FORMAT
 
-    Specify the input format.  Only accepts json and book.
+    Specify the input format.  Accepted options are json, book, and
+    markup.
 
     Default: book
+
+* Markup
+
+  If the option -i markup is used, dfbook will accept a text file with
+  some special formatting codes and convert it into a book.  The
+  following formatting codes are supported:
+
+  - %c Center the current line
+
+  - %s Display the current line in the script font
+
+  - %p End the page here
+
+  - %l Do not wrap or remove this line
+
+  - %% If you need to display a % character at the beginning of a line
+
+  Formatting codes can only appear at the beginning of a line, but a
+  line can have more than one formatting code.  After the text starts,
+  formatting codes will not have any effect.  %% counts as normal text
+  for this purpose.  All left-aligned, paragraphs that use the normal
+  font will be reformatted to fit Daggerfall's limit of 60 characters
+  per line.  Lines get broken up into pages automatically, so only
+  insert a page break if it is necessary for a page to end at a
+  specific place.
+
+  Trailing whitespace at the end of a line are eliminated.  Repeated
+  blank lines are treated as a single blank line, unless the %l format
+  code is used.

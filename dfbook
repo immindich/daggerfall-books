@@ -24,9 +24,11 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import sys, struct
+import sys
+import struct
 import json
 import getopt
+import textwrap
 
 NEW_LINE = 0x00
 SAME_LINE = 0x01
@@ -184,7 +186,7 @@ class Book:
         self.pages = []
         self.naughty = False
         self.price = 0
-        self.unknowns = [0, 0, 0]
+        self.unknowns = [1, 0x04d2, 0x0929]
 
     def decode(self, in_file):
         """Decode a file in the original book format
@@ -275,7 +277,7 @@ class Book:
             book_file.write(record)
 
     def load_json(self, data_str):
-        data = json.loads(data_str.decode())
+        data = json.loads(data_str)
 
         self.title = data['title']
         self.author = data['author']
@@ -296,6 +298,100 @@ class Book:
                                                      line_group['text']))
             self.pages.append(page)
 
+    def compile_markup(self, source):
+        def flush_lines(lg, ls):
+            if lg == []:
+                return
+            for text in [t.rstrip() for t in
+                         textwrap.fill('\n'.join(lg), 60).split('\n')]:
+                l = Line()
+                l.text = text
+                ls.append(l)
+            lg.clear()
+
+        self.pages = []
+        lines = [line.rstrip() for line in source]
+
+        if len(lines) < 2:
+            raise Exception("File must contain lines for title and author")
+
+        self.title = lines[0]
+        self.author = lines[1]
+
+        line_group = []
+        lines_to_add = []
+
+        prev_line_empty = True
+
+        for source_line in lines[2:]:
+            line = Line()
+
+            format_mode = False
+            preserve = False
+            page_end = False
+
+            i = 0
+            while i < len(source_line):
+                if format_mode:
+                    if source_line[i] == '%':
+                        break
+                    elif source_line[i] == 's':
+                        line.font = 'script'
+                    elif source_line[i] == 'c':
+                        line.align = 'center'
+                    elif source_line[i] == 'l':
+                        preserve = True
+                    elif source_line[i] == 'p':
+                        flush_lines(line_group, lines_to_add)
+                        lines_to_add.append(None)
+                        page_end = True
+                        prev_line_empty = True
+                        break
+                    else:
+                        raise Exception("Unrecognized formatting character")
+                    format_mode = False
+                elif source_line[i] == '%':
+                    if i == len(source_line) - 1:
+                        raise Exception("% without formatting character")
+                    format_mode = True
+                else:
+                    break
+                i += 1
+
+            if not page_end:
+                rest_of_line = source_line[i:]
+                if (line.align == 'left' and line.font == 'normal' and
+                    rest_of_line != '' and not preserve):
+                    line_group.append(rest_of_line)
+                    prev_line_empty = False
+                else:
+                    if not prev_line_empty or rest_of_line != '' or preserve:
+                        flush_lines(line_group, lines_to_add)
+                        line.text = rest_of_line
+                        lines_to_add.append(line)
+                    prev_line_empty = rest_of_line == '' and not preserve
+
+        flush_lines(line_group, lines_to_add)
+
+        if lines_to_add and lines_to_add[-1]:
+            lines_to_add.append(None)
+
+        page = Page()
+        height = 0
+        font_heights = {'script': 2, 'normal': 1}
+        for line in lines_to_add:
+            if line:
+                height += font_heights[line.font]
+                if height > 23:
+                    self.pages.append(page)
+                    page = Page()
+                    height = font_heights[line.font]
+                page.lines.append(line)
+            else:
+                self.pages.append(page)
+                page = Page()
+                height = 0
+
 def usage(status = 0):
     info = """Usage: ./dfbook [OPTIONS] [FILE]
 Options:
@@ -306,7 +402,7 @@ Options:
 \tbook: Daggerfall book format
 -o, --output FILE: output to a file
 -i, --input-format FORMAT: specify the input format
-\tcurrently only accepts 'json' and 'book'
+\taccepts json, book, and markup
 """
     sys.stderr.write(info)
     sys.exit(status)
@@ -349,16 +445,18 @@ def start():
 
     if len(args) == 1:
         try:
-            in_file = open(args[0], 'rb')
+            in_file = open(args[0], 'r')
         except IOError as e:
             print_exception(e)
             sys.exit(1)
 
     book = Book()
     if input_format == 'book':
-        book.decode(in_file)
+        book.decode(in_file.buffer)
     elif input_format == 'json':
         book.load_json(in_file.read())
+    elif input_format == 'markup':
+        book.compile_markup(in_file)
     else:
         sys.stderr.write("Error: unrecognized input format '{f}'\n"
                          .format(f=input_format))
